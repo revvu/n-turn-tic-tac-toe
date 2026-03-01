@@ -1,0 +1,10 @@
+{
+  "name": "n-turn-tic-tac-toe",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "analyze": "node scripts/analyze.mjs",
+    "serve": "python3 -m http.server 8000"
+  }
+}

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>N-Turn Tic-Tac-Toe Solver</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Fraunces:opsz,wght@9..144,500;9..144,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="bg-orb bg-orb-a"></div>
+    <div class="bg-orb bg-orb-b"></div>
+    <main class="page">
+      <section class="hero card">
+        <p class="eyebrow">Game Variant Explorer</p>
+        <h1>N-Turn Tic-Tac-Toe</h1>
+        <p class="subtext">
+          Both players place the same symbol for <strong>n</strong> turns before it flips. This app uses full minimax
+          search to play perfectly for n = 1 through 5.
+        </p>
+      </section>
+
+      <section class="play-area card">
+        <div class="controls">
+          <label>
+            Symbol Flip Interval (n)
+            <select id="n-select">
+              <option value="1">1 (classic)</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </select>
+          </label>
+
+          <label>
+            You Play As
+            <select id="side-select">
+              <option value="first">Player 1 (move first)</option>
+              <option value="second">Player 2 (move second)</option>
+            </select>
+          </label>
+
+          <button id="restart-btn" type="button">Restart Game</button>
+        </div>
+
+        <div class="game-shell">
+          <div class="board-wrap">
+            <div id="status" class="status"></div>
+            <div id="board" class="board" aria-label="Tic Tac Toe board"></div>
+          </div>
+
+          <aside class="eval-panel" aria-label="Position evaluation">
+            <div class="eval-title">Evaluation</div>
+            <div class="eval-bar-outer">
+              <div class="eval-bar-track">
+                <div id="eval-fill" class="eval-fill"></div>
+              </div>
+              <div class="eval-label top">Engine</div>
+              <div class="eval-label mid">Draw</div>
+              <div class="eval-label bottom">You</div>
+            </div>
+            <div id="eval-text" class="eval-text"></div>
+            <div class="pv-section">
+              <div class="pv-title">Principal Variation</div>
+              <ol id="pv-list" class="pv-list"></ol>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="analysis card">
+        <h2>Optimal Strategy Summary (Root Position)</h2>
+        <p id="analysis-summary" class="analysis-summary"></p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>n</th>
+                <th>Root Result</th>
+                <th>Optimal Opening Moves</th>
+                <th>Cached States</th>
+              </tr>
+            </thead>
+            <tbody id="analysis-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
