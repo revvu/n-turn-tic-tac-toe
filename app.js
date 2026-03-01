@@ -12,7 +12,10 @@ import {
 
 const boardEl = document.querySelector("#board");
 const statusEl = document.querySelector("#status");
+const statusMetaEl = document.querySelector("#status-meta");
 const evalFillEl = document.querySelector("#eval-fill");
+const evalIndicatorEl = document.querySelector("#eval-indicator");
+const evalScoreEl = document.querySelector("#eval-score");
 const evalTextEl = document.querySelector("#eval-text");
 const pvListEl = document.querySelector("#pv-list");
 const nSelectEl = document.querySelector("#n-select");
@@ -29,6 +32,7 @@ const state = {
   winner: null,
   draw: false,
   thinking: false,
+  lastMove: null,
 };
 
 function currentPlayer() {
@@ -64,13 +68,23 @@ function renderAnalysis() {
   for (const summary of summaries) {
     const row = document.createElement("tr");
 
-    const opening = summary.bestOpeningMoves.map(moveToLabel).join(", ");
+    const openingMoves = summary.bestOpeningMoves.map(moveToLabel);
+    const opening = openingMoves.join(", ");
+    const preview = openingMoves.slice(0, 3).join(", ");
+    const hasMore = openingMoves.length > 3;
 
     row.innerHTML = `
-      <td>${summary.n}</td>
-      <td>${resultLabel(summary.rootScore)}</td>
-      <td>${opening}</td>
-      <td>${summary.cachedStates.toLocaleString()}</td>
+      <td data-label="n">${summary.n}</td>
+      <td data-label="Root Result">${resultLabel(summary.rootScore)}</td>
+      <td data-label="Optimal Opening Moves">
+        <span class="opening-preview">${preview}${hasMore ? ", ..." : ""}</span>
+        ${
+          hasMore
+            ? `<details class="opening-details"><summary>Show line</summary><span>${opening}</span></details>`
+            : ""
+        }
+      </td>
+      <td data-label="Cached States">${summary.cachedStates.toLocaleString()}</td>
     `;
 
     analysisBodyEl.appendChild(row);
@@ -78,6 +92,19 @@ function renderAnalysis() {
 
   const roots = summaries.map((s) => `n=${s.n}: ${resultLabel(s.rootScore)}`);
   analysisSummaryEl.textContent = `Root minimax results (from Player 1 perspective): ${roots.join(" | ")}`;
+
+  for (const details of analysisBodyEl.querySelectorAll(".opening-details")) {
+    details.addEventListener("toggle", () => {
+      if (!details.open) {
+        return;
+      }
+      for (const other of analysisBodyEl.querySelectorAll(".opening-details")) {
+        if (other !== details) {
+          other.open = false;
+        }
+      }
+    });
+  }
 }
 
 function renderBoard() {
@@ -91,6 +118,9 @@ function renderBoard() {
 
     if (state.board[i] !== 0) {
       button.classList.add("filled");
+      if (state.lastMove === i) {
+        button.classList.add("just-played");
+      }
       button.disabled = true;
     } else {
       const humanTurn = currentPlayer() === state.humanPlayer;
@@ -102,30 +132,33 @@ function renderBoard() {
 }
 
 function updateEvalBar() {
+  let score = 0;
+
   if (state.winner !== null || state.draw) {
-    let score = 0;
     if (state.winner === enginePlayer()) {
       score = 1;
     } else if (state.winner === state.humanPlayer) {
       score = -1;
     }
-    const pct = ((score + 1) / 2) * 100;
-    evalFillEl.style.height = `${pct}%`;
     evalTextEl.textContent = score === 0 ? "Draw" : score > 0 ? "Engine won" : "You won";
-    return;
+  } else {
+    score = scoreFromPlayerPerspective(state.board, state.turn, state.n, enginePlayer());
+
+    if (score === 1) {
+      evalTextEl.textContent = "Engine has a forced win";
+    } else if (score === -1) {
+      evalTextEl.textContent = "You have a forced win";
+    } else {
+      evalTextEl.textContent = "Perfect play leads to draw";
+    }
   }
 
-  const score = scoreFromPlayerPerspective(state.board, state.turn, state.n, enginePlayer());
   const pct = ((score + 1) / 2) * 100;
   evalFillEl.style.height = `${pct}%`;
-
-  if (score === 1) {
-    evalTextEl.textContent = "Engine has a forced win";
-  } else if (score === -1) {
-    evalTextEl.textContent = "You have a forced win";
-  } else {
-    evalTextEl.textContent = "Perfect play leads to draw";
-  }
+  evalFillEl.style.width = `${pct}%`;
+  evalIndicatorEl.style.bottom = `calc(${pct}% - 2px)`;
+  evalScoreEl.textContent = score > 0 ? `+${score}` : String(score);
+  evalIndicatorEl.parentElement.style.setProperty("--eval-pct", `${pct}%`);
 }
 
 function principalVariationLines() {
@@ -146,7 +179,11 @@ function principalVariationLines() {
 
     const player = playerForTurn(turn);
     const mark = markForTurn(turn, state.n);
-    lines.push(`${playerLabel(player)} ${markToGlyph(mark)} -> ${moveToLabel(move)}`);
+    lines.push({
+      player: playerLabel(player),
+      mark: markToGlyph(mark),
+      square: moveToLabel(move),
+    });
     board[move] = mark;
 
     if (checkWin(board, mark)) {
@@ -164,16 +201,34 @@ function updatePrincipalVariation() {
 
   if (lines.length === 0) {
     const li = document.createElement("li");
+    li.className = "pv-empty";
     li.textContent = "No continuation (game over).";
     pvListEl.appendChild(li);
     return;
   }
 
-  for (const line of lines) {
+  for (const [idx, line] of lines.entries()) {
     const li = document.createElement("li");
-    li.textContent = line;
+    li.className = "pv-item";
+    if (idx === 0) {
+      li.classList.add("pv-next");
+    }
+    li.innerHTML = `<span class="pv-pill">${line.player}</span><span class="pv-sep">→</span><span class="pv-pill">${line.mark}</span><span class="pv-sep">→</span><span class="pv-pill">${line.square}</span>`;
     pvListEl.appendChild(li);
   }
+}
+
+function updateStatusMeta() {
+  if (state.winner !== null || state.draw) {
+    statusMetaEl.textContent = "";
+    return;
+  }
+
+  const turnNumber = state.turn + 1;
+  const chunkIndex = Math.floor(state.turn / state.n);
+  const chunkTurn = (state.turn % state.n) + 1;
+  const chunkSymbol = markToGlyph(markForTurn(state.turn, state.n));
+  statusMetaEl.textContent = `Turn ${turnNumber}/9 · Symbol chunk ${chunkIndex + 1}: ${chunkSymbol} (${chunkTurn}/${state.n})`;
 }
 
 function updateStatus() {
@@ -199,6 +254,7 @@ function updateStatus() {
 function render() {
   renderBoard();
   updateStatus();
+  updateStatusMeta();
   updateEvalBar();
   updatePrincipalVariation();
 }
@@ -211,6 +267,7 @@ function applyMove(index) {
   const mark = currentMark();
   const player = currentPlayer();
   state.board[index] = mark;
+  state.lastMove = index;
 
   if (checkWin(state.board, mark)) {
     state.winner = player;
@@ -255,6 +312,7 @@ function resetGame() {
   state.winner = null;
   state.draw = false;
   state.thinking = false;
+  state.lastMove = null;
   render();
 
   if (currentPlayer() === enginePlayer()) {

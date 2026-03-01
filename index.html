@@ -51,21 +51,30 @@
 
         <div class="game-shell">
           <div class="board-wrap">
-            <div id="status" class="status"></div>
+            <div id="status" class="status" role="status" aria-live="polite"></div>
+            <div id="status-meta" class="status-meta"></div>
             <div id="board" class="board" aria-label="Tic Tac Toe board"></div>
           </div>
 
           <aside class="eval-panel" aria-label="Position evaluation">
-            <div class="eval-title">Evaluation</div>
-            <div class="eval-bar-outer">
-              <div class="eval-bar-track">
-                <div id="eval-fill" class="eval-fill"></div>
+            <div class="eval-core">
+              <div class="eval-header">
+                <div class="eval-title">Evaluation</div>
+                <div id="eval-score" class="eval-score">0</div>
               </div>
-              <div class="eval-label top">Engine</div>
-              <div class="eval-label mid">Draw</div>
-              <div class="eval-label bottom">You</div>
+              <div class="eval-bar-outer">
+                <div class="eval-bar-track">
+                  <div id="eval-fill" class="eval-fill"></div>
+                  <div id="eval-indicator" class="eval-indicator"></div>
+                </div>
+              </div>
+              <div class="eval-legend">
+                <span>Engine</span>
+                <span>Draw</span>
+                <span>You</span>
+              </div>
+              <div id="eval-text" class="eval-text" role="status" aria-live="polite"></div>
             </div>
-            <div id="eval-text" class="eval-text"></div>
             <div class="pv-section">
               <div class="pv-title">Principal Variation</div>
               <ol id="pv-list" class="pv-list"></ol>
