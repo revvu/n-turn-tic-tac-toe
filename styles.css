@@ -352,6 +352,12 @@ select:focus-visible,
   display: grid;
   gap: 4px;
   font-size: 0.93rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.pv-item {
+  white-space: nowrap;
 }
 
 .pv-item::marker {
