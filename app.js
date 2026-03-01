@@ -13,7 +13,6 @@ import {
 const boardEl = document.querySelector("#board");
 const statusEl = document.querySelector("#status");
 const statusMetaEl = document.querySelector("#status-meta");
-const evalFillEl = document.querySelector("#eval-fill");
 const evalIndicatorEl = document.querySelector("#eval-indicator");
 const evalScoreEl = document.querySelector("#eval-score");
 const evalTextEl = document.querySelector("#eval-text");
@@ -154,8 +153,6 @@ function updateEvalBar() {
   }
 
   const pct = ((score + 1) / 2) * 100;
-  evalFillEl.style.height = `${pct}%`;
-  evalFillEl.style.width = `${pct}%`;
   evalIndicatorEl.style.bottom = `calc(${pct}% - 2px)`;
   evalScoreEl.textContent = score > 0 ? `+${score}` : String(score);
   evalIndicatorEl.parentElement.style.setProperty("--eval-pct", `${pct}%`);
