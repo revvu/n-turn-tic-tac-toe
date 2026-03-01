@@ -187,10 +187,32 @@ export function strategySummary(n) {
   const emptyBoard = Array(9).fill(0);
   const root = solvePosition(emptyBoard, 0, n);
   const stats = statsByN.get(n);
+  const lineBoard = Array(9).fill(0);
+  const optimalLine = [];
+  let lineTurn = 0;
+
+  while (lineTurn < 9) {
+    const lineSolution = solvePosition(lineBoard, lineTurn, n);
+    const move = lineSolution.bestMoves[0];
+    if (move === undefined) {
+      break;
+    }
+
+    optimalLine.push(move);
+    const mark = markForTurn(lineTurn, n);
+    lineBoard[move] = mark;
+
+    if (checkWin(lineBoard, mark)) {
+      break;
+    }
+    lineTurn += 1;
+  }
+
   return {
     n,
     rootScore: root.score,
     bestOpeningMoves: root.bestMoves,
+    optimalLine,
     exploredNodes: stats.nodes,
     cachedStates: memoByN.get(n).size,
   };

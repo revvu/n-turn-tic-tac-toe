@@ -111,20 +111,27 @@ function renderAnalysis() {
   for (const summary of summaries) {
     const row = document.createElement("tr");
 
-    const openingMoves = summary.bestOpeningMoves;
-    const previewMoves = openingMoves.slice(0, 3);
-    const hasMore = openingMoves.length > 3;
+    const openingLine = summary.optimalLine ?? summary.bestOpeningMoves;
+    const lineKey = openingLine.join(",");
+    const previewMoves = openingLine.slice(0, 3);
+    const hasMore = openingLine.length > 3;
     const preview = previewMoves
-      .map((move) => `<button class="opening-jump" type="button" data-n="${summary.n}" data-move="${move}">${moveToLabel(move)}</button>`)
+      .map(
+        (move, idx) =>
+          `<button class="opening-jump" type="button" data-n="${summary.n}" data-line="${lineKey}" data-depth="${idx + 1}">${moveToLabel(move)}</button>`,
+      )
       .join(" ");
-    const fullLine = openingMoves
-      .map((move) => `<button class="opening-jump" type="button" data-n="${summary.n}" data-move="${move}">${moveToLabel(move)}</button>`)
+    const fullLine = openingLine
+      .map(
+        (move, idx) =>
+          `<button class="opening-jump" type="button" data-n="${summary.n}" data-line="${lineKey}" data-depth="${idx + 1}">${moveToLabel(move)}</button>`,
+      )
       .join(" ");
 
     row.innerHTML = `
       <td data-label="n">${summary.n}</td>
       <td data-label="Root Result">${resultLabel(summary.rootScore)}</td>
-      <td data-label="Optimal Opening Moves">
+      <td data-label="Optimal Line">
         <span class="opening-preview">${preview}${hasMore ? ` <span class="opening-ellipsis">...</span>` : ""}</span>
         ${
           hasMore
@@ -448,9 +455,15 @@ analysisBodyEl.addEventListener("click", (event) => {
     return;
   }
 
-  const move = Number(jumpButton.dataset.move);
+  const depth = Number(jumpButton.dataset.depth);
   const n = Number(jumpButton.dataset.n);
-  if (Number.isNaN(move) || Number.isNaN(n)) {
+  const lineRaw = jumpButton.dataset.line ?? "";
+  const line = lineRaw
+    .split(",")
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value >= 0 && value < 9);
+
+  if (Number.isNaN(depth) || Number.isNaN(n) || line.length === 0) {
     return;
   }
 
@@ -463,7 +476,16 @@ analysisBodyEl.addEventListener("click", (event) => {
     lastMove: null,
   };
 
-  applyMoveToSnapshot(snapshot, move);
+  const steps = Math.min(depth, line.length);
+  for (let idx = 0; idx < steps; idx += 1) {
+    if (!applyMoveToSnapshot(snapshot, line[idx])) {
+      break;
+    }
+    if (snapshot.winner !== null || snapshot.draw) {
+      break;
+    }
+  }
+
   setStateFromSnapshot(snapshot);
 });
 
