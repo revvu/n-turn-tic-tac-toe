@@ -60,6 +60,50 @@ function resultLabel(score) {
   return "Draw";
 }
 
+function boardToKey(board) {
+  return board.join("");
+}
+
+function keyToBoard(key) {
+  return key.split("").map((ch) => Number(ch));
+}
+
+function applyMoveToSnapshot(snapshot, move) {
+  if (snapshot.winner !== null || snapshot.draw || snapshot.board[move] !== 0) {
+    return false;
+  }
+
+  const mark = markForTurn(snapshot.turn, snapshot.n);
+  const player = playerForTurn(snapshot.turn);
+  snapshot.board[move] = mark;
+  snapshot.lastMove = move;
+
+  if (checkWin(snapshot.board, mark)) {
+    snapshot.winner = player;
+    return true;
+  }
+
+  if (snapshot.turn === 8) {
+    snapshot.draw = true;
+    return true;
+  }
+
+  snapshot.turn += 1;
+  return true;
+}
+
+function setStateFromSnapshot(snapshot) {
+  state.board = snapshot.board.slice();
+  state.turn = snapshot.turn;
+  state.n = snapshot.n;
+  state.winner = snapshot.winner;
+  state.draw = snapshot.draw;
+  state.lastMove = snapshot.lastMove;
+  state.thinking = false;
+  nSelectEl.value = String(snapshot.n);
+  render();
+}
+
 function renderAnalysis() {
   const summaries = allStrategySummaries();
   analysisBodyEl.innerHTML = "";
@@ -67,19 +111,24 @@ function renderAnalysis() {
   for (const summary of summaries) {
     const row = document.createElement("tr");
 
-    const openingMoves = summary.bestOpeningMoves.map(moveToLabel);
-    const opening = openingMoves.join(", ");
-    const preview = openingMoves.slice(0, 3).join(", ");
+    const openingMoves = summary.bestOpeningMoves;
+    const previewMoves = openingMoves.slice(0, 3);
     const hasMore = openingMoves.length > 3;
+    const preview = previewMoves
+      .map((move) => `<button class="opening-jump" type="button" data-n="${summary.n}" data-move="${move}">${moveToLabel(move)}</button>`)
+      .join(" ");
+    const fullLine = openingMoves
+      .map((move) => `<button class="opening-jump" type="button" data-n="${summary.n}" data-move="${move}">${moveToLabel(move)}</button>`)
+      .join(" ");
 
     row.innerHTML = `
       <td data-label="n">${summary.n}</td>
       <td data-label="Root Result">${resultLabel(summary.rootScore)}</td>
       <td data-label="Optimal Opening Moves">
-        <span class="opening-preview">${preview}${hasMore ? ", ..." : ""}</span>
+        <span class="opening-preview">${preview}${hasMore ? ` <span class="opening-ellipsis">...</span>` : ""}</span>
         ${
           hasMore
-            ? `<details class="opening-details"><summary>Show line</summary><span>${opening}</span></details>`
+            ? `<details class="opening-details"><summary>Show line</summary><span>${fullLine}</span></details>`
             : ""
         }
       </td>
@@ -180,6 +229,7 @@ function principalVariationLines() {
       player: playerLabel(player),
       mark: markToGlyph(mark),
       square: moveToLabel(move),
+      move,
     });
     board[move] = mark;
 
@@ -204,13 +254,17 @@ function updatePrincipalVariation() {
     return;
   }
 
+  const sourceBoard = boardToKey(state.board);
+  const sourceTurn = state.turn;
+  const sourceN = state.n;
+
   for (const [idx, line] of lines.entries()) {
     const li = document.createElement("li");
     li.className = "pv-item";
     if (idx === 0) {
       li.classList.add("pv-next");
     }
-    li.innerHTML = `<span class="pv-pill">${line.player}</span><span class="pv-sep">→</span><span class="pv-pill">${line.mark}</span><span class="pv-sep">→</span><span class="pv-pill">${line.square}</span>`;
+    li.innerHTML = `<span class="pv-pill">${line.player}</span><span class="pv-sep">→</span><span class="pv-pill">${line.mark}</span><span class="pv-sep">→</span><button class="pv-jump pv-pill" type="button" data-depth="${idx + 1}" data-source-board="${sourceBoard}" data-source-turn="${sourceTurn}" data-source-n="${sourceN}">${line.square}</button>`;
     pvListEl.appendChild(li);
   }
 }
@@ -338,6 +392,79 @@ boardEl.addEventListener("click", (event) => {
 
   render();
   engineStep();
+});
+
+pvListEl.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+
+  const jumpButton = target.closest(".pv-jump");
+  if (!(jumpButton instanceof HTMLButtonElement)) {
+    return;
+  }
+
+  const depth = Number(jumpButton.dataset.depth);
+  const sourceTurn = Number(jumpButton.dataset.sourceTurn);
+  const sourceN = Number(jumpButton.dataset.sourceN);
+  const sourceBoardKey = jumpButton.dataset.sourceBoard;
+
+  if (!sourceBoardKey || Number.isNaN(depth) || Number.isNaN(sourceTurn) || Number.isNaN(sourceN)) {
+    return;
+  }
+
+  const snapshot = {
+    board: keyToBoard(sourceBoardKey),
+    turn: sourceTurn,
+    n: sourceN,
+    winner: null,
+    draw: false,
+    lastMove: null,
+  };
+
+  for (let i = 0; i < depth; i += 1) {
+    const move = bestMove(snapshot.board, snapshot.turn, snapshot.n);
+    if (move === null) {
+      break;
+    }
+    applyMoveToSnapshot(snapshot, move);
+    if (snapshot.winner !== null || snapshot.draw) {
+      break;
+    }
+  }
+
+  setStateFromSnapshot(snapshot);
+});
+
+analysisBodyEl.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+
+  const jumpButton = target.closest(".opening-jump");
+  if (!(jumpButton instanceof HTMLButtonElement)) {
+    return;
+  }
+
+  const move = Number(jumpButton.dataset.move);
+  const n = Number(jumpButton.dataset.n);
+  if (Number.isNaN(move) || Number.isNaN(n)) {
+    return;
+  }
+
+  const snapshot = {
+    board: Array(9).fill(0),
+    turn: 0,
+    n,
+    winner: null,
+    draw: false,
+    lastMove: null,
+  };
+
+  applyMoveToSnapshot(snapshot, move);
+  setStateFromSnapshot(snapshot);
 });
 
 nSelectEl.addEventListener("change", () => {
