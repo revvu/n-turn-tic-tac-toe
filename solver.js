@@ -74,6 +74,24 @@ function preferredSort(a, b) {
   return PREFERRED_MOVE_ORDER.indexOf(a) - PREFERRED_MOVE_ORDER.indexOf(b);
 }
 
+function isBetterDistance(score, distance, bestDistance) {
+  if (bestDistance === null) {
+    return true;
+  }
+
+  if (score > 0) {
+    // In winning lines, prefer the shortest forced win.
+    return distance < bestDistance;
+  }
+
+  if (score < 0) {
+    // In losing lines, prefer the longest resistance.
+    return distance > bestDistance;
+  }
+
+  return false;
+}
+
 function solveState(board, turn, n, memo, stats) {
   const key = boardKey(board, turn);
   const existing = memo.get(key);
@@ -85,12 +103,13 @@ function solveState(board, turn, n, memo, stats) {
 
   const terminal = terminalStateScore(board, turn, n);
   if (terminal !== null) {
-    const result = { score: terminal, bestMoves: [] };
+    const result = { score: terminal, distance: 0, bestMoves: [] };
     memo.set(key, result);
     return result;
   }
 
   let bestScore = -Infinity;
+  let bestDistance = null;
   let bestMoves = [];
   const mark = markForTurn(turn, n);
 
@@ -102,13 +121,20 @@ function solveState(board, turn, n, memo, stats) {
     board[idx] = mark;
     const child = solveState(board, turn + 1, n, memo, stats);
     const score = -child.score;
+    const distance = child.distance + 1;
     board[idx] = 0;
 
     if (score > bestScore) {
       bestScore = score;
+      bestDistance = distance;
       bestMoves = [idx];
     } else if (score === bestScore) {
-      bestMoves.push(idx);
+      if (isBetterDistance(score, distance, bestDistance)) {
+        bestDistance = distance;
+        bestMoves = [idx];
+      } else if (distance === bestDistance) {
+        bestMoves.push(idx);
+      }
     }
   }
 
@@ -116,6 +142,7 @@ function solveState(board, turn, n, memo, stats) {
 
   const result = {
     score: bestScore,
+    distance: bestDistance,
     bestMoves,
   };
   memo.set(key, result);

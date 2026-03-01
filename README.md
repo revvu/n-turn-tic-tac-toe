@@ -22,6 +22,10 @@ The solver uses full-depth minimax with memoization (transposition table) over g
   - For each legal move: apply mark, recurse to next turn
   - Child score is from opponent perspective, so parent score is `-childScore`
   - Choose move(s) with maximal score
+  - Tie-break by game length:
+    - If score is winning (`+1`), prefer the shortest forced win
+    - If score is losing (`-1`), prefer the longest forced loss
+    - If score is draw (`0`), use static move preference (center, corners, edges)
 
 This computes exact optimal play (no heuristic cutoffs).
 
@@ -33,9 +37,9 @@ Scores below are from **Player 1 perspective** at the empty board.
 |---|---|---|---:|
 | 1 | Draw | all 9 squares (center preferred tie-break) | 5,478 |
 | 2 | Draw | all 9 squares (center preferred tie-break) | 4,822 |
-| 3 | Win for Player 1 | all 9 squares (center preferred tie-break) | 4,902 |
+| 3 | Win for Player 1 | center only | 4,902 |
 | 4 | Win for Player 1 | center only | 2,674 |
-| 5 | Win for Player 1 | all 9 squares (center preferred tie-break) | 802 |
+| 5 | Win for Player 1 | center only | 802 |
 
 ## Web App
 
